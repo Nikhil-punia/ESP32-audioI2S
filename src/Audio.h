@@ -390,6 +390,9 @@ public:
     hwoe_t dismantle_host(const char* host);
     bool connecttohost(const char* host, const char* user = "", const char* pwd = "");
     bool connecttospeech(const char* speech, const char* lang);
+    bool connect_local_tts(const String& host, int port, const String& path,
+                             const String& text, const String& voice_id,
+                              const String& lang, const String& endpoint);
     bool connecttoFS(fs::FS &fs, const char* path, int32_t m_fileStartPos = -1);
     void setConnectionTimeout(uint16_t timeout_ms, uint16_t timeout_ms_ssl);
     bool setAudioPlayPosition(uint16_t sec);
