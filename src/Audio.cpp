@@ -1003,6 +1003,64 @@ bool Audio::connecttospeech(const char* speech, const char* lang) {
     return true;
 }
 //------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+bool Audio::connect_local_tts(const String& host, int port, const String& path,
+                             const String& text, const String& voice_id,
+                              const String& lang, const String& endpoint) {
+
+    if (text.isEmpty()) {
+        AUDIO_INFO("TTS text is empty");
+        stopSong();
+        return false;
+    }
+
+    xSemaphoreTakeRecursive(mutex_playAudioData, 0.3 * configTICK_RATE_HZ);
+    setDefaults();
+    m_f_ssl = false;
+    m_f_tts = true;
+    m_speechtxt.assign(text.c_str());
+
+    String body = "{";
+    body += "\"text\":\"" + text + "\"";
+    if (!voice_id.isEmpty()) body += ",\"voice\":\"" + voice_id + "\"";
+    if (!lang.isEmpty()) body += ",\"lang\":\"" + lang + "\"";
+    body += "}";
+
+    String req = "POST " + path + " HTTP/1.1\r\n";
+    req += "Host: " + host + "\r\n";
+    req += "User-Agent: ESP32-AudioI2S\r\n";
+    req += "Accept: */*\r\n";
+    req += "Content-Type: application/json\r\n";
+    req += "Content-Length: " + String(body.length()) + "\r\n";
+    req += "Connection: close\r\n\r\n";
+    req += body;
+
+    _client = static_cast<WiFiClient*>(&client);
+
+    AUDIO_INFO("Connecting to local TTS server %s:%d", host.c_str(), port);
+
+    if (!_client->connect(host.c_str(), port)) {
+        AUDIO_INFO("Connection failed");
+        xSemaphoreGiveRecursive(mutex_playAudioData);
+        return false;
+    }
+
+    _client->print(req);
+
+    m_f_running = true;
+    m_dataMode = HTTP_RESPONSE_HEADER;
+    m_lastHost.assign(host.c_str());
+    m_currentHost.assign(host.c_str());
+
+    if (endpoint == "gtts" || endpoint == "edge_tts") {
+        m_expectedCodec = CODEC_MP3;
+    } else if (endpoint == "tts") {
+        m_expectedCodec = CODEC_WAV;
+    }
+
+    xSemaphoreGiveRecursive(mutex_playAudioData);
+    return true;
+}
+//------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 void Audio::showID3Tag(const char* tag, const char* value) {
     ps_ptr<char>id3tag = {};
     // V2.2
